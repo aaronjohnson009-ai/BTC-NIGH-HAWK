@@ -2,8 +2,8 @@ name: BTC Watchdog
 
 on:
   schedule:
-    - cron: "*/5 * * * *"   # runs every 5 minutes
-  workflow_dispatch: {}       # lets you also trigger it manually from GitHub's website
+    - cron: "*/5 * * * *"
+  workflow_dispatch: {}
 
 jobs:
   run-bot:
