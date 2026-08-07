@@ -1,6 +1,11 @@
 {
   "last_update_id": 0,
-  "price_history": [],
+  "price_history": [
+    {
+      "time": "2026-08-07T02:20:11.957676+00:00",
+      "price": 64456.3753512551
+    }
+  ],
   "alerts": [],
   "last_alert_direction": null,
   "last_alert_time": null
