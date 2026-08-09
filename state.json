@@ -144,6 +144,10 @@
     {
       "time": "2026-08-09T15:57:07.877953+00:00",
       "price": 65179.362593459526
+    },
+    {
+      "time": "2026-08-09T17:50:12.636495+00:00",
+      "price": 65173.46008978956
     }
   ],
   "alerts": [],
@@ -151,5 +155,5 @@
   "last_alert_time": null,
   "muted": false,
   "price_targets": [],
-  "last_daily_summary_date": "2026-08-08"
+  "last_daily_summary_date": "2026-08-09"
 }
