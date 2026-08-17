@@ -544,6 +544,10 @@
     {
       "time": "2026-08-17T21:55:43.939092+00:00",
       "price": 64337.33987842686
+    },
+    {
+      "time": "2026-08-17T22:55:30.334543+00:00",
+      "price": 64245.21195743679
     }
   ],
   "alerts": [
@@ -585,7 +589,9 @@
         "Price is above its longer-term average",
         "Trading activity is about 1.6x higher than normal"
       ],
-      "resolved": false
+      "resolved": true,
+      "correct": false,
+      "outcome_move_pct": 0.0013773255713837706
     },
     {
       "time": "2026-08-17T19:42:14.672387+00:00",
