@@ -524,6 +524,10 @@
     {
       "time": "2026-08-17T15:54:45.820745+00:00",
       "price": 64140.82111754661
+    },
+    {
+      "time": "2026-08-17T17:01:36.280054+00:00",
+      "price": 64057.44278955237
     }
   ],
   "alerts": [
@@ -538,11 +542,23 @@
         "Trading activity is about 1.5x higher than normal"
       ],
       "resolved": false
+    },
+    {
+      "time": "2026-08-17T17:01:36.280054+00:00",
+      "price": 64057.44278955237,
+      "direction": "BULLISH",
+      "score": 60,
+      "reasons": [
+        "Short-term trend is up (20 vs 50 average)",
+        "Price is above its longer-term average",
+        "Trading activity is about 1.5x higher than normal"
+      ],
+      "resolved": false
     }
   ],
   "last_alert_direction": "BULLISH",
-  "last_alert_time": "2026-08-17T15:54:45.820745+00:00",
+  "last_alert_time": "2026-08-17T17:01:36.280054+00:00",
   "muted": false,
   "price_targets": [],
-  "last_daily_summary_date": "2026-08-16"
+  "last_daily_summary_date": "2026-08-17"
 }
