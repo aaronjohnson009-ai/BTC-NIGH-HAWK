@@ -1,0 +1,26 @@
+[
+  {
+    "id": "sig_1",
+    "recorded_at": "2026-08-17T23:57:06.357685+00:00",
+    "price": 64463.94204578769,
+    "direction": "BULLISH",
+    "score": 50,
+    "action": "WAIT",
+    "rsi": 80.12443805114832,
+    "ema20": 63917.38633573127,
+    "ema50": 63540.72789750786,
+    "ema200": 63568.48402810326,
+    "support": 62552.90123325802,
+    "resistance": 64463.94204578769,
+    "volatility": "NORMAL",
+    "volume_spike": 1.3813341230793734,
+    "reasons": [
+      "Short-term trend is up (20-hour average above 50-hour average)",
+      "Price is above its longer-term (200-hour) average"
+    ],
+    "opposing_reasons": [
+      "RSI (80) suggests it may be overbought (due for a pullback)",
+      "Price is near a resistance ceiling ($64,464)"
+    ]
+  }
+]
