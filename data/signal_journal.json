@@ -70,5 +70,29 @@
       "RSI (72) suggests it may be overbought (due for a pullback)",
       "Price is near a resistance ceiling ($64,491)"
     ]
+  },
+  {
+    "id": "sig_4",
+    "recorded_at": "2026-08-18T00:23:44.484578+00:00",
+    "price": 64425.18541393178,
+    "direction": "BULLISH",
+    "score": 50,
+    "action": "WAIT",
+    "rsi": 72.66637930405918,
+    "ema20": 63966.95085626543,
+    "ema50": 63575.80078554643,
+    "ema200": 63577.090927692116,
+    "support": 62552.90123325802,
+    "resistance": 64491.345282946255,
+    "volatility": "NORMAL",
+    "volume_spike": 1.34495450616544,
+    "reasons": [
+      "Short-term trend is up (20-hour average above 50-hour average)",
+      "Price is above its longer-term (200-hour) average"
+    ],
+    "opposing_reasons": [
+      "RSI (73) suggests it may be overbought (due for a pullback)",
+      "Price is near a resistance ceiling ($64,491)"
+    ]
   }
 ]
