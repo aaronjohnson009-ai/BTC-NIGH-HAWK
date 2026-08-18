@@ -1,20 +1,24 @@
 """
-main.py — BTC-NIGHT-HAWK Entry Point (Phase 1: Analysis Foundation)
+main.py — BTC-NIGHT-HAWK Entry Point (Phase 2+3: Paper Trading, Risk Engine,
+Multi-Timeframe, Market Regime, Outcome Tracking, Price Alerts)
 
 Runs on a schedule via GitHub Actions. Each run:
 1. Fetches + validates market data (data_engine)
-2. Computes indicators and builds bullish/bearish evidence (indicators, signal_engine)
-3. Scores the setup and determines the current action state (scoring_engine, action_engine)
-4. Records the signal in the journal (journal)
-5. Handles any Telegram commands sent since the last run
-6. Sends a Telegram alert if warranted, or an hourly check-in otherwise
-7. Persists everything back to /data via storage.py (committed to git by the workflow)
+2. Computes indicators, multi-timeframe agreement, and market regime
+3. Builds bullish/bearish evidence and scores the setup (signal_engine, scoring_engine)
+4. Determines the current action state (action_engine)
+5. Records the signal in the journal (journal) and appends to the price archive
+6. Grades any signals that are now old enough to evaluate (outcome_engine)
+7. Handles any Telegram commands sent since the last run
+8. Sends a Telegram alert if warranted, or an hourly check-in otherwise
+9. Checks custom price alerts (price_alerts)
+10. Runs every paper trading strategy and sends a message for any trade opened or closed
+11. Persists everything back to /data via storage.py (committed to git by the workflow)
 
-NOTE: This is Phase 1 of the BTC-NIGHT-HAWK rebuild — analysis + action
-system + signal journal + Telegram UX, matching everything the old bot did
-plus the new action-state language and signal journal. Paper trading, the
-risk engine, and strategy evolution come in Phase 2, layered on top of this
-foundation without needing to touch this file's core logic again.
+NOTE: Genetic strategy evolution (the "self-learning" piece) is still Phase
+4 — it needs a large, varied dataset to responsibly split into training,
+validation, and test sets, which 30 days of hourly data can't yet provide
+without risking a misleading result.
 """
 
 from datetime import datetime, timezone
@@ -27,10 +31,17 @@ import scoring_engine
 import action_engine
 import journal
 import learn
+import paper_trading
+import performance
+import multi_timeframe
+import regime_engine
+import outcome_engine
+import price_alerts
+import price_archive
 import telegram_bot as tg
 
 
-def handle_commands(state: dict, snap: dict) -> dict:
+def handle_commands(state: dict, snap: dict, paper_window: list[dict]) -> dict:
     updates = tg.get_updates(state.get("last_update_id", 0) + 1)
     for u in updates:
         state["last_update_id"] = u["update_id"]
@@ -64,6 +75,27 @@ def handle_commands(state: dict, snap: dict) -> dict:
         elif text.startswith("/health"):
             errors = storage.load("error_log", [])
             tg.send_message(tg.format_health(state.get("last_run_time"), len(errors), state.get("last_price_points", 0)))
+        elif text.startswith("/paper"):
+            tg.send_message(performance.format_leaderboard(paper_trading.all_metrics(snap["price"])))
+        elif text.startswith("/consensus"):
+            tg.send_message(tg.format_consensus(paper_trading.consensus(paper_window)))
+        elif text.startswith("/regime"):
+            tg.send_message(tg.format_regime(snap.get("regime_info", {})))
+        elif text.startswith("/stats"):
+            tg.send_message(tg.format_stats(outcome_engine.summary()))
+        elif text.startswith("/alerts"):
+            tg.send_message(tg.format_alerts_list(price_alerts.list_alerts()))
+        elif text.startswith("/alert"):
+            parts = text.split(maxsplit=1)
+            if len(parts) < 2:
+                tg.send_message("Usage: /alert <price>, e.g. /alert 70000")
+            else:
+                try:
+                    target = float(parts[1].replace(",", "").replace("$", ""))
+                    price_alerts.add_alert(target)
+                    tg.send_message(f"🎯 Alert set for ${target:,.2f}. I'll message you when BTC crosses it.")
+                except ValueError:
+                    tg.send_message("That doesn't look like a number. Try: /alert 70000")
         elif text.startswith("/learn"):
             parts = text.split(maxsplit=1)
             if len(parts) < 2:
@@ -87,6 +119,7 @@ def run():
         "last_heartbeat_time": None,
         "last_run_time": None,
         "last_price_points": 0,
+        "last_price": None,
     })
 
     try:
@@ -103,6 +136,13 @@ def run():
     scored = scoring_engine.score_snapshot(raw_snapshot)
     snap = action_engine.determine_action(scored)
 
+    # Multi-timeframe + market regime — descriptive context, attached to the snapshot
+    regime_info = regime_engine.detect(prices, snap["volatility"])
+    snap["regime"] = regime_info["regime"]
+    snap["regime_info"] = regime_info
+
+    paper_window = [{"price": p} for p in prices[-config.PAPER_STRATEGY_WINDOW:]]
+
     # Signal journal — record every signal, not just alerts
     journal.record_signal(journal.next_signal_id(), {
         "price": snap["price"], "direction": snap["direction"], "score": snap["score"],
@@ -110,10 +150,15 @@ def run():
         "ema200": snap["ema200"], "support": snap["support"], "resistance": snap["resistance"],
         "volatility": snap["volatility"], "volume_spike": snap["volume_spike"],
         "reasons": snap["reasons"], "opposing_reasons": snap["opposing_reasons"],
+        "regime": snap["regime"],
     })
 
+    # Grow the price archive and grade any signals old enough to evaluate — both silent/background
+    price_archive.append(snap["price"])
+    outcome_engine.grade_due_signals(snap["price"])
+
     # Handle Telegram commands using this run's fresh snapshot
-    state = handle_commands(state, snap)
+    state = handle_commands(state, snap, paper_window)
 
     # Alerting: only on actual entries/exits, never on HOLD/WATCH/WAIT — avoids spam
     now = datetime.now(timezone.utc)
@@ -143,11 +188,20 @@ def run():
             tg.send_message("⏱ HOURLY CHECK-IN\n\n" + tg.format_analysis(snap) + "\n\n" + tg.format_action_block(snap))
         state["last_heartbeat_time"] = now.isoformat()
 
+    # Custom price alerts — notify on any target crossed since the last run
+    for msg in price_alerts.check_and_trigger(snap["price"], state.get("last_price")):
+        tg.send_message(msg)
+
+    # Paper trading — every strategy takes its own simulated action on the latest prices
+    for msg in paper_trading.run_all(snap["price"], paper_window):
+        tg.send_message(msg)
+
+    state["last_price"] = snap["price"]
     state["last_run_time"] = now.isoformat()
     state["last_price_points"] = len(prices)
     storage.save("bot_state", state)
 
-    print(f"Run complete. Price=${snap['price']:,.0f} Action={snap['action']} Score={snap['score']}")
+    print(f"Run complete. Price=${snap['price']:,.0f} Action={snap['action']} Score={snap['score']} Regime={snap['regime']}")
 
 
 if __name__ == "__main__":
