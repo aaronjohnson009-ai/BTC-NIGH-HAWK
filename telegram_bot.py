@@ -48,12 +48,19 @@ HELP_TEXT = (
     "/position - current tracked position\n"
     "/status - full dashboard\n"
     "/health - system health check\n"
+    "/paper - paper trading strategy leaderboard\n"
+    "/consensus - what each strategy currently thinks, side by side\n"
+    "/regime - current market regime (bull/bear/sideways/volatile)\n"
+    "/stats - real alert accuracy, tracked separately from paper trading\n"
+    "/alert <price> - notify me when BTC crosses this price (e.g. /alert 70000)\n"
+    "/alerts - list your active price alerts\n"
     "/learn <topic> - beginner explanation (e.g. /learn rsi)\n"
     "/help - this list\n\n"
-    "Mode: ANALYSIS only for now — no simulated or real trades yet, that's\n"
-    "coming in the next phase. Live trading is not built into this bot at all.\n\n"
+    "Mode: 🧪 PAPER — simulated trades only, with realistic fees, slippage,\n"
+    "stop-loss, and take-profit. Live trading is not built into this bot at all.\n\n"
     "You'll get an hourly check-in automatically, plus real alerts when\n"
-    "something strong is happening."
+    "something strong is happening, plus a message whenever a paper strategy\n"
+    "opens or closes a trade."
 )
 
 
@@ -83,11 +90,13 @@ def format_alert(snap: dict) -> str:
     risks_text = "\n".join(f"• {r}" for r in snap["opposing_reasons"]) or "• None weighing against it right now"
     support = snap["support"] if snap["support"] is not None else 0
     resistance = snap["resistance"] if snap["resistance"] is not None else 0
+    regime_line = f"\nMarket Regime: {snap['regime']}" if snap.get("regime") else ""
     return (
         f"🦅 BTC-NIGHT-HAWK\n\n"
         f"{format_action_block(snap)}\n\n"
         f"BTC: ${snap['price']:,.0f}\n"
-        f"Setup Quality: {snap['score']}/100\n\n"
+        f"Setup Quality: {snap['score']}/100"
+        f"{regime_line}\n\n"
         f"Why:\n{reasons_text}\n\n"
         f"Risks:\n{risks_text}\n\n"
         f"Important levels:\n"
@@ -102,10 +111,12 @@ def format_analysis(snap: dict) -> str:
     trend_emoji = {"UP": "🟢 Going up", "DOWN": "🔴 Going down", "SIDEWAYS": "🟡 Sideways"}[snap["trend"]]
     support = snap["support"] if snap["support"] is not None else 0
     resistance = snap["resistance"] if snap["resistance"] is not None else 0
+    regime_line = f"Market Regime: {snap['regime']}\n" if snap.get("regime") else ""
     return (
         f"📊 BTC ANALYSIS\n\n"
         f"Price: ${snap['price']:,.0f}\n"
         f"Trend: {trend_emoji}\n"
+        f"{regime_line}"
         f"Volatility: {snap['volatility_emoji']} {snap['volatility']}\n"
         f"Trading activity: {snap['volume_spike']:.1f}x normal\n"
         f"RSI: {rsi_text}\n\n"
@@ -118,11 +129,13 @@ def format_status(snap: dict) -> str:
     rsi_text = f"{snap['rsi']:.0f}" if snap["rsi"] is not None else "N/A"
     pos = snap["position"]
     position_text = "NONE" if pos["side"] is None else pos["side"].upper()
+    regime_line = f"Market Regime: {snap['regime']}\n" if snap.get("regime") else ""
     return (
         f"🦅 BTC-NIGHT-HAWK STATUS\n\n"
         f"BTC: ${snap['price']:,.0f}\n\n"
         f"{format_action_block(snap)}\n\n"
         f"Setup Quality: {snap['score']}/100\n"
+        f"{regime_line}"
         f"Trend: {snap['trend']}\n"
         f"RSI: {rsi_text}\n"
         f"Volatility: {snap['volatility_emoji']} {snap['volatility']}\n\n"
@@ -167,3 +180,52 @@ def format_learn(topic_key: str) -> str:
         f"Simple example:\n{topic['example']}\n\n"
         f"Important:\n{topic['not']}"
     )
+
+
+def format_regime(regime: dict) -> str:
+    tf = regime.get("timeframes", {})
+    tf_lines = "\n".join(f"  {k.capitalize()}: {v}" for k, v in tf.items()) or "  Not enough data yet"
+    return (
+        f"🌎 MARKET REGIME\n\n"
+        f"{regime['regime']}\n\n"
+        f"Simple:\n{regime['explanation']}\n\n"
+        f"Timeframe agreement: {regime.get('agreement', 'n/a')}\n{tf_lines}\n\n"
+        f"~1 month change: {regime.get('higher_change_pct', 0):+.2f}%"
+    )
+
+
+def format_consensus(c: dict) -> str:
+    lines = ["🧠 STRATEGY CONSENSUS\n"]
+    for name, vote in c["votes"].items():
+        lines.append(f"{name}: {vote}")
+    lines.append(f"\nOverall: {c['long_count']} LONG, {c['short_count']} SHORT, {c['wait_count']} WAIT")
+    lines.append("\n<i>This is each strategy's raw signal — the risk engine may still block a trade even if a strategy says LONG or SHORT.</i>")
+    return "\n".join(lines)
+
+
+def format_stats(summary: dict) -> str:
+    if summary.get("graded", 0) == 0:
+        return (
+            "📊 ALERT ACCURACY\n\n"
+            "No alerts have been graded yet — signals are checked "
+            "24 hours after they're logged to see whether price actually "
+            "moved the predicted direction. Check back once the bot has been "
+            "running for a day or more."
+        )
+    return (
+        f"📊 ALERT ACCURACY\n\n"
+        f"Signals graded: {summary['graded']}\n"
+        f"Success rate: {summary['success_rate_pct']}%\n"
+        f"Average price move: {summary['avg_change_pct']:+.2f}%\n\n"
+        f"<i>This tracks whether alerts called the direction right, separate "
+        f"from paper trading performance (see /paper for that).</i>"
+    )
+
+
+def format_alerts_list(alerts: list[dict]) -> str:
+    if not alerts:
+        return "No active price alerts. Set one with /alert <price>, e.g. /alert 70000"
+    lines = ["🎯 ACTIVE PRICE ALERTS\n"]
+    for a in alerts:
+        lines.append(f"${a['target_price']:,.2f}")
+    return "\n".join(lines)
